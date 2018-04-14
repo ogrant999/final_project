@@ -5,7 +5,6 @@ import plotly
 import requests
 import numpy as np
 import pandas as pd
-from bs4 import BeautifulSoup
 import sqlite3
 from requests_oauthlib import OAuth1
 import secrets as secrets
@@ -15,13 +14,12 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 
 CACHE_FNAME = 'final_project_cache.json'
-try:
-    cache_file = open(CACHE_FNAME, 'r')
-    cache_contents = cache_file.read()
-    CACHE_DICTION = json.loads(cache_contents)
-    cache_file.close()
-except:
-    CACHE_DICTION = {}
+WALK_CACHE_FNAME = 'final_project_walk_cache.json'
+DBNAME = 'final.db'
+CACHE_DICTION = {}
+
+REFRESH_YELP = True
+REFRESH_WALKS = False
 
 def params_unique_combination(url, params):
     alphabetized_keys = sorted(params.keys())
@@ -66,7 +64,7 @@ def get_data_from_yelp(term, location, limit=50):
     headers = {
         'Authorization': 'Bearer {}'.format(API_KEY)
     }
-    params = {'term': term, 'location': location, 'limit':50}
+    params = {'term': term, 'location': location, 'limit': limit}
     uniq = params_unique_combination(url, params)
     if uniq in CACHE_DICTION:
         text = CACHE_DICTION[uniq]
@@ -77,8 +75,6 @@ def get_data_from_yelp(term, location, limit=50):
         CACHE_DICTION[uniq] = yelpinfo
         save_cache()
         return yelpinfo
-load_cache()
-# get_data_from_yelp('restaurants', 'Wilmette')
 
 
 def get_WalkScore(latitude, longitude, address):
@@ -96,82 +92,120 @@ def get_WalkScore(latitude, longitude, address):
         CACHE_DICTION[uniq] = walkinfo
         save_cache()
         return walkinfo
-load_cache()
-# get_WalkScore(41.8846460590586, -87.6484126982138, '820 W Randolph St, Chicago IL')
+
+def main():
+    global CACHE_FNAME, DBNAME, CACHE_DICTION, REFRESH_YELP, REFRESH_WALKS
+
+    #load_cache()
+    # delete/ignore final_project_cache.json
+    if REFRESH_YELP == True:
+        get_data_from_yelp('restaurants', 'Chicago', limit=5)
+        get_data_from_yelp('restaurants', 'Detroit', limit=5)
+    else:
+        load_cache()
+
+    for key in CACHE_DICTION.keys():
+        print(key)
+        city_rst = CACHE_DICTION[key]
+        for city_key in city_rst:
+            print("--" + str(city_key))
+        business_list = city_rst['businesses']
+        for business in business_list:
+            print("----" + str(business))
+            b_id = business['id']
+            b_name = business['name']
+            b_categories = business['categories']
+            #b_price = business['price']
+            b_coords = business['coordinates']
+            b_lat = b_coords['latitude']
+            b_lon = b_coords['longitude']
+            b_loc = business['location']
+            b_disp_addr = b_loc['display_address']
+            print("ID: " + str(b_id))
+            print("NAME: " + str(b_name))
+            print("LAT: "+ str(b_lat))
+            print("LON:" + str(b_lon))
+            print("ADR: " + str(b_disp_addr))
+            statement = ''' INSERT INTO RESTAURANTS (b_coords, b_lat, b_lon, b_loc, b_disp_addr) VALUES (?, ?, ?, ?, ?)'''
+            if REFRESH_WALKS == True:
+                get_WalkScore(b_lat, b_lon, " ".join(b_disp_addr))
+    for key in WALK_CACHE_DICTION.keys():
+        pass
+
+    # conn = sqlite3.connect(DBNAME)
+    # cur = conn.cursor()
+    # statement = 'DROP TABLE IF EXISTS "CITIES"'
+    # cur.execute(statement)
+    # conn.commit()
+    # statement = 'DROP TABLE IF EXISTS "RESTAURANTS"'
+    # cur.execute(statement)
+    # conn.commit()
+    # statement = 'DROP TABLE IF EXISTS "WALKSCORE"'
+    # cur.execute(statement)
+    # conn.commit()
+    #
+    # statement = '''
+    # CREATE TABLE IF NOT EXISTS 'CITIES' (
+    # ‘id’ INTEGER PRIMARY KEY,
+    # 'city' TEXT
+    # )
+    # '''
+    # cur.execute(statement)
+    # conn.commit()
+    #
+    # statement = '''
+    # CREATE TABLE IF NOT EXISTS 'RESTAURANTS' (
+    # 'id' INTEGER PRIMARY KEY,
+    # 'rating' DECIMAL,
+    # ‘review_count’ INTEGER,
+    # 'categories' TEXT,
+    # 'title' TEXT,
+    # 'price' TEXT,
+    # 'city_id' INTEGER,
+    # ‘display_address’ TEXT,
+    # ‘latitude’ REAL,
+    # ‘longitude’ REAL
+    # )
+    # '''
+    # cur.execute(statement)
+    # conn.commit()
+    #
+    #
+    # statement = '''
+    # CREATE TABLE IF NOT EXISTS 'WALKSCORE' (
+    # 'id' INTEGER PRIMARY KEY,
+    # 'walkscore' INTEGER,
+    # 'snapped_lat' INTEGER,
+    # 'snapped_lon' INTEGER,
+    # 'address' TEXT
+    # )
+    # '''
+    # cur.execute(statement)
+    # conn.commit()
+    #
+    #
+    # json_file = open('final_project_cache.json', 'r')
+    # read_j = json_file.read()
+    # list_file = json.loads(read_j)
+    # for key in list_file.keys():
+    #     value = list_file[key]
+    #     print( "\n" + str(key) + " = " + str(value) )
 
 
-DBNAME = 'final.db'
-YELPWALKJSON = 'final_project_cache.json'
 
-conn = sqlite3.connect(DBNAME)
-cur = conn.cursor()
-statement = 'DROP TABLE IF EXISTS "CITIES"'
-cur.execute(statement)
-conn.commit()
-statement = 'DROP TABLE IF EXISTS "RESTAURANTS"'
-cur.execute(statement)
-conn.commit()
-statement = 'DROP TABLE IF EXISTS "WALKSCORE"'
-cur.execute(statement)
-conn.commit()
-
-statement = '''
-CREATE TABLE IF NOT EXISTS 'CITIES' (
-‘id’ INTEGER PRIMARY KEY,
-‘name’ TEXT,
-‘display_address’ TEXT,
-‘latitude’ REAL,
-‘longitude’ REAL
-)
-'''
-cur.execute(statement)
-conn.commit()
-
-statement = '''
-CREATE TABLE IF NOT EXISTS 'RESTAURANTS' (
-'id' INTEGER PRIMARY KEY,
-'rating' DECIMAL,
-‘review_count’ INTEGER,
-'categories' TEXT,
-'title' TEXT,
-'price' TEXT,
-'city' TEXT
-)
-'''
-cur.execute(statement)
-conn.commit()
-
-
-statement = '''
-CREATE TABLE IF NOT EXISTS 'WALKSCORE' (
-'walkscore' INTEGER,
-'snapped_lat' INTEGER,
-'snapped_lon' INTEGER,
-'address' TEXT
-)
-'''
-cur.execute(statement)
-conn.commit()
-
-
-json_file = open('final_project_cache.json', 'r')
-read_j = json_file.read()
-list_file = json.loads(read_j)
-
-
-for info in list_file.values():
-    name = info["businesses"][1]["name"]
-    display_address = info["businesses"][1]["name"]
-    latitude = info["latitude"]
-    longitude = info["businesses"][1]["name"]
-
-    insertion = (None, name, display_address, latitude, longitude)
-    statement = '''
-    INSERT INTO 'CITIES'
-    Values (?, ?, ?, ?, ?)
-    '''
-    cur.execute(statement, insertion)
-conn.commit()
+# for key,info in list_file.values():
+#     name = info[[1]
+#     display_address = info[2]
+#     latitude = info["businesses"][1]["name"]
+#     longitude = info["businesses"][1]["name"]
+#
+#     insertion = (None, name, display_address, latitude, longitude)
+#     statement = '''
+#     INSERT INTO 'CITIES'
+#     Values (?, ?, ?, ?, ?)
+#     '''
+#     cur.execute(statement, insertion)
+# conn.commit()
 
 # for info in list_file.values():
 #     rating = info
@@ -200,13 +234,17 @@ conn.commit()
 #     '''
 #     cur.execute(statement, insertion)
 # conn.commit()
-#
-#
-#
-#
+
+
+
+#data processing code
+
+
+
+#data presentation code
 
 
 #--------------------------------------------------------------------------------------------------------
 
-# if __name__ == '__main__':
-#     main()
+if __name__ == '__main__':
+    main()
