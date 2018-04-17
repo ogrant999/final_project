@@ -6,7 +6,6 @@ import requests
 import numpy as np
 import pandas as pd
 import sqlite3
-from requests_oauthlib import OAuth1
 import secrets as secrets
 import requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
@@ -89,8 +88,9 @@ def make_request_using_cache2(url, headers, params, verify=False):
         save_cache()
         return CACHE_DICTION2[unique_ident]
 
+#calling APIs
 
-def get_data_from_yelp(term, location, limit=50):
+def get_data_from_yelp(term, location, limit=100):
     url = 'https://api.yelp.com/v3/businesses/search'
     API_KEY = secrets.YELP_API_KEY
     headers = {
@@ -107,7 +107,7 @@ def get_data_from_yelp(term, location, limit=50):
         CACHE_DICTION[uniq] = yelpinfo
         save_cache()
         return yelpinfo
-# get_data_from_yelp('restaurants', 'New York')
+        #get_data_from_yelp('restaurants', 'New York')
 
 def get_WalkScore(latitude, longitude, address):
     url = 'http://api.walkscore.com/score?format=json'
@@ -115,37 +115,46 @@ def get_WalkScore(latitude, longitude, address):
     params = {'lat': latitude, 'lon': longitude, 'address': address, 'wsapikey':apiKey}
     response = requests.get(url, params=params)
     uniq = params_unique_combination(url, params)
+    #print(uniq)
     if uniq in CACHE_DICTION2:
         text = CACHE_DICTION2[uniq]
-        return text
     else:
         response = requests.get(url, params=params, verify=False)
         walkinfo = json.loads(response.text)
+        #print(walkinfo)
         CACHE_DICTION2[uniq] = walkinfo
         save_cache()
-        return walkinfo
+    return uniq
 
 
 def main():
+    print("Start")
     global CACHE_FNAME, DBNAME, CACHE_DICTION, REFRESH_YELP, REFRESH_WALKS
 
     #load_cache()
     # delete/ignore final_project_cache.json
     if REFRESH_YELP == True:
-        get_data_from_yelp('restaurants', 'Chicago', limit=25)
-        get_data_from_yelp('restaurants', 'Detroit', limit=25)
+        get_data_from_yelp('restaurants', 'Chicago', limit=10)
+        get_data_from_yelp('restaurants', 'Detroit', limit=10)
+        get_data_from_yelp('restaurants', 'Los Angeles', limit=10)
+        get_data_from_yelp('restaurants', 'New York', limit=10)
+        get_data_from_yelp('restaurants', 'Atlanta', limit=10)
+        get_data_from_yelp('restaurants', 'San Francisco', limit=10)
+        get_data_from_yelp('restaurants', 'Orlando', limit=10)
+        get_data_from_yelp('restaurants', 'Miami', limit=10)
+        get_data_from_yelp('restaurants', 'Philadelphia', limit=10)
+        get_data_from_yelp('restaurants', 'St. Louis', limit=10)
     else:
         load_cache()
 
+#create databases
+
     conn = sqlite3.connect(DBNAME)
     cur = conn.cursor()
-    statement = 'DROP TABLE IF EXISTS "CITIES"'
-    cur.execute(statement)
-    conn.commit()
     statement = 'DROP TABLE IF EXISTS "RESTAURANTS"'
     cur.execute(statement)
     conn.commit()
-    statement = 'DROP TABLE IF EXISTS "WALKSCORE"'
+    statement = 'DROP TABLE IF EXISTS "WALK"'
     cur.execute(statement)
     conn.commit()
 
@@ -155,45 +164,30 @@ def main():
     'name' TEXT,
     'id' TEXT,
     'rating' DECIMAL,
-    ‘review_count’ INTEGER,
+    'review_count' INTEGER,
     'title' TEXT,
     'price' TEXT,
-    ‘latitude’ DECIMAL,
-    ‘longitude’ DECIMAL,
-    'city' TEXT,
-    'display_address' TEXT
-    )
-    '''
-    cur.execute(statement)
-    conn.commit()
-
-
-    statement = '''
-    CREATE TABLE IF NOT EXISTS 'CITIES' (
-    ‘id’ TEXT,
-    'name' TEXT,
     'lat' DECIMAL,
     'lon' DECIMAL,
-    'city' TEXT
+    'city' TEXT,
+    'display_address' TEXT,
+    'walk_id' INTEGER
     )
     '''
     cur.execute(statement)
     conn.commit()
-
 
     statement = '''
-    CREATE TABLE IF NOT EXISTS 'WALKSCORE' (
-    'id' INTEGER PRIMARY KEY,
-    'walkscore' INTEGER,
-    'snapped_lat' INTEGER,
-    'snapped_lon' INTEGER
+    CREATE TABLE IF NOT EXISTS 'WALK' (
+    'id' INTEGER,
+    'walkscore' INTEGER
     )
     '''
     cur.execute(statement)
     conn.commit()
 
-
-
+#populate databases
+    walk_id = 1
     for key in CACHE_DICTION.keys():
         city_rst = CACHE_DICTION[key]
         for city_key in city_rst:
@@ -209,59 +203,88 @@ def main():
             b_reviewcount = business['review_count']
             b_rating = business['rating']
             b_categories = business['categories']
+            b_loc = business['location']
+            b_disp_addr = b_loc['display_address'][0]
+            b_disp_addr2 = b_loc['display_address'][1]
+            b_display_addr = str(b_disp_addr + " " + b_disp_addr2)
+            b_city = b_loc['city']
             b_title = b_categories[0]['title']
             b_coords = business['coordinates']
             b_lat = b_coords['latitude']
             b_lon = b_coords['longitude']
-            b_loc = business['location']
-            b_city = b_loc['city']
-            b_disp_addr = b_loc['display_address'][0]
-            b_disp_addr2 = b_loc['display_address'][1]
-            b_display_addr = str(b_disp_addr + " " + b_disp_addr2)
-            statement = '''INSERT INTO 'RESTAURANTS' Values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
-            insertion = (b_name, b_id, b_rating, b_reviewcount, b_title, b_price, b_lat, b_lon, b_city, b_display_addr)
-            cur.execute(statement, insertion)
-            conn.commit()
-            if REFRESH_WALKS == True:
-                get_WalkScore(b_lat, b_lon, " ".join(b_disp_addr))
 
-    # get_WalkScore('40.6935414945595', '-73.9858423383398', '2 MetroTech Ctr Metrotech Campus Brooklyn, NY 11201')
-    for key in CACHE_DICTION.keys():
-        city_rst = CACHE_DICTION[key]
-        for city_key in city_rst:
-            business_list = city_rst['businesses']
-        for business in business_list:
-            b_id = business['id']
-            b_name = business['name']
-            b_lat = b_coords['latitude']
-            b_lon = b_coords['longitude']
-            b_loc = business['location']
-            b_city = b_loc['city']
-            statement = '''INSERT INTO 'CITIES' Values (?, ?, ?, ?, ?)'''
-            insertion = (b_id, b_name, b_lat, b_lon, b_city)
-            cur.execute(statement, insertion)
-            conn.commit()
-        for key in CACHE_DICTION2.keys():
-            walk = CACHE_DICTION2[key]
-            # print(walk)
-            for score in walk:
-                walkscore = walk['walkscore']
-                lat = walk['snapped_lat']
-                lon = walk['snapped_lon']
-                statement = '''INSERT INTO 'WALKSCORE' Values (?, ?, ?, ?)'''
-                insertion = (None, walkscore, lat, lon)
+            key = get_WalkScore(b_lat, b_lon, b_display_addr)
+            got_walk_id = False
+            try:
+                walkscore = CACHE_DICTION2[key]['walkscore']
+                statement = '''INSERT INTO 'WALK' Values (?, ?)'''
+                insertion = (walk_id, walkscore)
                 cur.execute(statement, insertion)
                 conn.commit()
+                got_walk_id = True
+            except KeyError:
+                print(CACHE_DICTION2[key])
+                pass
 
+            walk_id_to_insert = walk_id if got_walk_id else None
 
+            statement = '''INSERT INTO 'RESTAURANTS' Values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+            insertion = (b_name, b_id, b_rating, b_reviewcount, b_title, b_price, b_lat, b_lon, b_city, b_display_addr, walk_id_to_insert)
+            cur.execute(statement, insertion)
+            conn.commit()
+            if got_walk_id:
+                walk_id += 1
+
+#--------------------------------------------------------------------------------------------------------
 #data processing code
 
+def process_command(command):
+    cities = []
+    for city in command:
+        cities.append("'" + city.lower() + "'")
+    print(cities)
 
+    cities_string = ",".join(cities)
 
+    statement = 'SELECT city, name, rating, walkscore, title, price, review_count  ' \
+    'FROM RESTAURANTS r ' \
+    'JOIN WALK w on r.walk_id = w.id ' \
+    'WHERE lower(city) in (' + cities_string + ')'
+
+    print(statement)
+
+    conn = sqlite3.connect(DBNAME)
+    cur = conn.cursor()
+    cur.execute(statement)
+    results = cur.fetchall()
+    return results
+
+#--------------------------------------------------------------------------------------------------------
 #data presentation code
+
+def interactive_prompt():
+    response = ''
+    while response != 'exit':
+        response = input('Enter a command: ')
+        wordslst = response.split()
+        if response == 'exit':
+            print("bye!")
+        elif len(wordslst) == 0:
+            print("Please enter a command.")
+            continue
+        command = wordslst[0]
+        final_results = process_command(wordslst[1:])
+        if len(final_results) == 0:
+            print("No results for that query.")
+        if command == "rating":
+            print("Ratings")
+            print(final_results)
+        else:
+            print("Command not recognized: {}".format(response))
 
 
 #--------------------------------------------------------------------------------------------------------
 
-if __name__ == '__main__':
-    main()
+if __name__=="__main__":
+    #main()
+    interactive_prompt()
