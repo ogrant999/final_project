@@ -146,7 +146,7 @@ def main():
         get_data_from_yelp('restaurants', 'Orlando', limit=20)
         get_data_from_yelp('restaurants', 'Miami', limit=20)
         get_data_from_yelp('restaurants', 'Philadelphia', limit=20)
-        get_data_from_yelp('restaurants', 'St. Louis', limit=20)
+        get_data_from_yelp('restaurants', 'Pittsburgh', limit=20)
     else:
         load_cache()
 

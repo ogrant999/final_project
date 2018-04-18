@@ -30,9 +30,9 @@ San Francisco
 Orlando
 Miami
 Philadelphia
-St. Louis
+Pittsburgh
 
-Type into the command line either (price, review, rating, or type) and then the city you want
+Type into the command line either (price, walkscore, rating, or type) and then the city you want
 For example:
 ratings Chicago
 price Miami
@@ -40,3 +40,4 @@ walkscore Los Angeles
 type Orlando
 
 rating, price, review, and type all lead to different plotly graphs of maps and show each restaurant as a dot with associated information
+rating, price, and walkscore are color coded 
