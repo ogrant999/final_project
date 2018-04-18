@@ -14,11 +14,8 @@ https://www.yelp.com/developers/documentation/v3/business_search
 Brief description of how your code is structured, including the names of significant data processing functions (just the 2-3 most important functions--not a complete list) and class definitions.
 -Created two caching files, one for yelp and one for Walkscore
 -Then I create one database of restaurants for yelp and one for walkscore and populated them by iterating through the json files in each cache
-
-
-
-If there are large data structures (e.g., lists, dictionaries) that you create to organize your data for presentation, briefly describe them.
--
+-I made four functions to process information for each graphic display_address
+-Then used interactive code to call each function
 
 
 Brief user guide, including how to run the program and how to choose presentation options.
