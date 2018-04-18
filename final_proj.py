@@ -1,7 +1,10 @@
 import requests
 import json
 import sys
-import plotly
+import plotly.plotly as py
+import plotly.graph_objs as go
+import plotly.figure_factory as FF
+from plotly.graph_objs import *
 import requests
 import numpy as np
 import pandas as pd
@@ -134,16 +137,16 @@ def main():
     #load_cache()
     # delete/ignore final_project_cache.json
     if REFRESH_YELP == True:
-        get_data_from_yelp('restaurants', 'Chicago', limit=10)
-        get_data_from_yelp('restaurants', 'Detroit', limit=10)
-        get_data_from_yelp('restaurants', 'Los Angeles', limit=10)
-        get_data_from_yelp('restaurants', 'New York', limit=10)
-        get_data_from_yelp('restaurants', 'Atlanta', limit=10)
-        get_data_from_yelp('restaurants', 'San Francisco', limit=10)
-        get_data_from_yelp('restaurants', 'Orlando', limit=10)
-        get_data_from_yelp('restaurants', 'Miami', limit=10)
-        get_data_from_yelp('restaurants', 'Philadelphia', limit=10)
-        get_data_from_yelp('restaurants', 'St. Louis', limit=10)
+        get_data_from_yelp('restaurants', 'Chicago', limit=20)
+        get_data_from_yelp('restaurants', 'Detroit', limit=20)
+        get_data_from_yelp('restaurants', 'Los Angeles', limit=20)
+        get_data_from_yelp('restaurants', 'New York', limit=20)
+        get_data_from_yelp('restaurants', 'Atlanta', limit=20)
+        get_data_from_yelp('restaurants', 'San Francisco', limit=20)
+        get_data_from_yelp('restaurants', 'Orlando', limit=20)
+        get_data_from_yelp('restaurants', 'Miami', limit=20)
+        get_data_from_yelp('restaurants', 'Philadelphia', limit=20)
+        get_data_from_yelp('restaurants', 'St. Louis', limit=20)
     else:
         load_cache()
 
@@ -239,19 +242,14 @@ def main():
 #data processing code
 
 def process_command(command):
-    cities = []
-    for city in command:
-        cities.append("'" + city.lower() + "'")
-    print(cities)
+    city = ' '.join([x.lower() for x in command])
+    city = "'" + city + "'"
 
-    cities_string = ",".join(cities)
 
-    statement = 'SELECT city, name, rating, walkscore, title, price, review_count  ' \
+    statement = 'SELECT city, name, rating, walkscore, title, price, review_count, lat, lon  ' \
     'FROM RESTAURANTS r ' \
     'JOIN WALK w on r.walk_id = w.id ' \
-    'WHERE lower(city) in (' + cities_string + ')'
-
-    print(statement)
+    'WHERE lower(city) in (' + city + ')'
 
     conn = sqlite3.connect(DBNAME)
     cur = conn.cursor()
@@ -261,6 +259,239 @@ def process_command(command):
 
 #--------------------------------------------------------------------------------------------------------
 #data presentation code
+
+def map_graph(data_in):
+    labels = []
+    for datum in data_in:
+        labels.append(datum[1] + " Type: " + str(datum[4]) + " Walkscore: " + str(datum[3]))
+    df = pd.DataFrame(data_in)
+
+    site_lat = df.iloc[:,7]
+    site_lon = df.iloc[:,8]
+
+    mapbox_access_token = 'pk.eyJ1Ijoib2dyYW50MjM5NHUiLCJhIjoiY2pnNGFlNWsxMGlsMDJ3bG83N2oybTdmeiJ9.x2ICgBJQNc0RjP05yr18og'
+
+    data = Data([
+        Scattermapbox(
+            lat=site_lat,
+            lon=site_lon,
+            mode='markers',
+            marker=Marker(
+                size=10,
+                color='rgb(255, 105, 180)',
+                opacity=0.7
+            ),
+            text=labels,
+            hoverinfo='text'
+        )]
+    )
+
+    layout = Layout(
+        title='',
+        autosize=True,
+        hovermode='closest',
+        showlegend=False,
+        mapbox=dict(
+            accesstoken=mapbox_access_token,
+            bearing=0,
+            center=dict(
+                lat=np.mean(site_lat),
+                lon=np.mean(site_lon)
+            ),
+            pitch=0,
+            zoom=10,
+            style='light'
+        ),
+    )
+
+    fig = dict(data=data, layout=layout)
+    py.plot(fig, filename="")
+
+def map_price_graph(data_in):
+
+    df = pd.DataFrame(data_in,columns=['city', 'restaurant', 'rating', 'walkscore', 'type', 'price', 'review_count', 'lat', 'lon'])
+    price_levels = df.price.unique()
+    scattermapboxs = []
+    for price_level in price_levels:
+        df_filtered = df[df['price'] == price_level]
+        site_lat = df_filtered.lat
+        site_lon = df_filtered.lon
+        labels = df[['restaurant', 'price']].apply(lambda x: ' '.join(x), axis=1)
+        color = 'rgb(255, 0, 0)'
+        if price_level == '$$$':
+            color = 'rgb(255, 165, 0)'
+        elif price_level == '$$':
+            color = 'rgb(0, 0, 255)'
+        elif price_level == '$':
+            color = 'rgb(0, 255, 0)'
+        scattermapboxs.append(Scattermapbox(
+            lat=site_lat,
+            lon=site_lon,
+            mode='markers',
+            marker=Marker(
+                size=10,
+                color=color,
+                opacity=1
+            ),
+            text=labels,
+            hoverinfo='text'
+        ))
+
+    site_lat = df.lat
+    site_lon = df.lon
+
+    mapbox_access_token = 'pk.eyJ1Ijoib2dyYW50MjM5NHUiLCJhIjoiY2pnNGFlNWsxMGlsMDJ3bG83N2oybTdmeiJ9.x2ICgBJQNc0RjP05yr18og'
+
+    data = Data(scattermapboxs)
+
+    layout = Layout(
+        title='',
+        autosize=True,
+        hovermode='closest',
+        showlegend=False,
+        mapbox=dict(
+            accesstoken=mapbox_access_token,
+            bearing=0,
+            center=dict(
+                lat=np.mean(site_lat),
+                lon=np.mean(site_lon)
+            ),
+            pitch=0,
+            zoom=10,
+            style='light'
+        ),
+    )
+
+    fig = dict(data=data, layout=layout)
+    py.plot(fig, filename="")
+
+
+def map_ratings_graph(data_in):
+
+    df = pd.DataFrame(data_in,columns=['city', 'restaurant', 'rating', 'walkscore', 'type', 'price', 'review_count', 'lat', 'lon'])
+    rating_levels = df.rating.unique()
+
+    scattermapboxs = []
+    for rating_level in rating_levels:
+        df_filtered = df[df['rating'] == rating_level]
+        site_lat = df_filtered.lat
+        site_lon = df_filtered.lon
+        labels = df_filtered[['restaurant', 'rating']].astype('str').apply(lambda x: ' '.join(x), axis=1)
+        color = 'rgb(255, 0, 0)'
+        if rating_level == 5.0:
+            color = 'rgb(255, 165, 0)'
+        elif rating_level == 4.5:
+            color = 'rgb(0, 0, 255)'
+        elif rating_level == 4.0:
+            color = 'rgb(0, 255, 0)'
+        scattermapboxs.append(Scattermapbox(
+            lat=site_lat,
+            lon=site_lon,
+            mode='markers',
+            marker=Marker(
+                size=10,
+                color=color,
+                opacity=1
+            ),
+            text=labels,
+            hoverinfo='text'
+        ))
+
+    site_lat = df.lat
+    site_lon = df.lon
+
+    mapbox_access_token = 'pk.eyJ1Ijoib2dyYW50MjM5NHUiLCJhIjoiY2pnNGFlNWsxMGlsMDJ3bG83N2oybTdmeiJ9.x2ICgBJQNc0RjP05yr18og'
+
+    data = Data(scattermapboxs)
+
+    layout = Layout(
+        title='',
+        autosize=True,
+        hovermode='closest',
+        showlegend=False,
+        mapbox=dict(
+            accesstoken=mapbox_access_token,
+            bearing=0,
+            center=dict(
+                lat=np.mean(site_lat),
+                lon=np.mean(site_lon)
+            ),
+            pitch=0,
+            zoom=10,
+            style='light'
+        ),
+    )
+
+    fig = dict(data=data, layout=layout)
+    py.plot(fig, filename="")
+
+def map_walkscore_graph(data_in):
+    df = pd.DataFrame(data_in,columns=['city', 'restaurant', 'rating', 'walkscore', 'type', 'price', 'review_count', 'lat', 'lon'])
+    walkscore_levels = df.walkscore.unique()
+
+    scattermapboxs = []
+    for walkscore_level in walkscore_levels:
+        df_filtered = df[df['walkscore'] == walkscore_level]
+        site_lat = df_filtered.lat
+        site_lon = df_filtered.lon
+        labels = df_filtered[['restaurant', 'walkscore']].astype('str').apply(lambda x: ' '.join(x), axis=1)
+        color = 'rgb(0, 255, 0)'
+        if walkscore_level <= 80:
+            color = 'rgb(255, 0, 0)'
+        elif walkscore_level > 80 and  walkscore_level <= 90:
+            color = 'rgb(255, 165, 0)'
+        elif walkscore_level > 90 and  walkscore_level <= 93:
+            color = 'rgb(255, 100, 0)'
+        elif walkscore_level > 93 and walkscore_level <= 96:
+            color = 'rgb(0, 0, 255)'
+        elif walkscore_level > 96:
+            color = 'rgb(0, 255, 0)'
+        scattermapboxs.append(Scattermapbox(
+            lat=site_lat,
+            lon=site_lon,
+            mode='markers',
+            marker=Marker(
+                size=10,
+                color=color,
+                opacity=1
+            ),
+            text=labels,
+            hoverinfo='text'
+        ))
+
+    site_lat = df.lat
+    site_lon = df.lon
+
+    mapbox_access_token = 'pk.eyJ1Ijoib2dyYW50MjM5NHUiLCJhIjoiY2pnNGFlNWsxMGlsMDJ3bG83N2oybTdmeiJ9.x2ICgBJQNc0RjP05yr18og'
+
+    data = Data(scattermapboxs)
+
+    layout = Layout(
+        title='',
+        autosize=True,
+        hovermode='closest',
+        showlegend=False,
+        mapbox=dict(
+            accesstoken=mapbox_access_token,
+            bearing=0,
+            center=dict(
+                lat=np.mean(site_lat),
+                lon=np.mean(site_lon)
+            ),
+            pitch=0,
+            zoom=10,
+            style='light'
+        ),
+    )
+
+    fig = dict(data=data, layout=layout)
+    py.plot(fig, filename="")
+
+
+
+
+#--------------------------------------------------------------------------------------------
+
 
 def interactive_prompt():
     response = ''
@@ -274,13 +505,14 @@ def interactive_prompt():
             continue
         command = wordslst[0]
         final_results = process_command(wordslst[1:])
-        if len(final_results) == 0:
-            print("No results for that query.")
-        if command == "rating":
-            print("Ratings")
-            print(final_results)
-        else:
-            print("Command not recognized: {}".format(response))
+        if command == "type":
+            map_graph(final_results)
+        elif command == "price":
+            map_price_graph(final_results)
+        elif command == "ratings":
+            map_ratings_graph(final_results)
+        elif command == "walkscore":
+            map_walkscore_graph(final_results)
 
 
 #--------------------------------------------------------------------------------------------------------
