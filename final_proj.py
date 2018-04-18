@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 import sqlite3
 import secrets as secrets
-import requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
@@ -110,7 +109,6 @@ def get_data_from_yelp(term, location, limit=100):
         CACHE_DICTION[uniq] = yelpinfo
         save_cache()
         return yelpinfo
-        #get_data_from_yelp('restaurants', 'New York')
 
 def get_WalkScore(latitude, longitude, address):
     url = 'http://api.walkscore.com/score?format=json'
@@ -131,7 +129,7 @@ def get_WalkScore(latitude, longitude, address):
 
 
 def main():
-    print("Start")
+    # print("Start")
     global CACHE_FNAME, DBNAME, CACHE_DICTION, REFRESH_YELP, REFRESH_WALKS
 
     #load_cache()
@@ -258,7 +256,7 @@ def process_command(command):
     return results
 
 #--------------------------------------------------------------------------------------------------------
-#data presentation code
+#data presentation code, 4 graphs
 
 def map_graph(data_in):
     labels = []
@@ -316,12 +314,12 @@ def map_price_graph(data_in):
         df_filtered = df[df['price'] == price_level]
         site_lat = df_filtered.lat
         site_lon = df_filtered.lon
-        labels = df[['restaurant', 'price']].apply(lambda x: ' '.join(x), axis=1)
+        labels = df[['restaurant', 'price']].astype('str').apply(lambda x: ' '.join(x), axis=1)
         color = 'rgb(255, 0, 0)'
         if price_level == '$$$':
-            color = 'rgb(255, 165, 0)'
+            color = 'rgb(51, 255, 255)'
         elif price_level == '$$':
-            color = 'rgb(0, 0, 255)'
+            color = 'rgb(127, 0, 255)'
         elif price_level == '$':
             color = 'rgb(0, 255, 0)'
         scattermapboxs.append(Scattermapbox(
@@ -379,11 +377,11 @@ def map_ratings_graph(data_in):
         labels = df_filtered[['restaurant', 'rating']].astype('str').apply(lambda x: ' '.join(x), axis=1)
         color = 'rgb(255, 0, 0)'
         if rating_level == 5.0:
-            color = 'rgb(255, 165, 0)'
+            color = 'rgb(255, 0, 255)'
         elif rating_level == 4.5:
-            color = 'rgb(0, 0, 255)'
+            color = 'rgb(127, 0, 255)'
         elif rating_level == 4.0:
-            color = 'rgb(0, 255, 0)'
+            color = 'rgb(51, 255, 255)'
         scattermapboxs.append(Scattermapbox(
             lat=site_lat,
             lon=site_lon,
@@ -441,9 +439,9 @@ def map_walkscore_graph(data_in):
         elif walkscore_level > 80 and  walkscore_level <= 90:
             color = 'rgb(255, 165, 0)'
         elif walkscore_level > 90 and  walkscore_level <= 93:
-            color = 'rgb(255, 100, 0)'
+            color = 'rgb(255, 0, 255)'
         elif walkscore_level > 93 and walkscore_level <= 96:
-            color = 'rgb(0, 0, 255)'
+            color = 'rgb(127, 0, 255)'
         elif walkscore_level > 96:
             color = 'rgb(0, 255, 0)'
         scattermapboxs.append(Scattermapbox(
@@ -498,8 +496,12 @@ def interactive_prompt():
         wordslst = response.split()
         if response == 'exit':
             print("bye!")
+            return
         elif len(wordslst) == 0:
             print("Please enter a command.")
+            continue
+        elif len(wordslst) > 2:
+            print('Command not recognized. Only type in one city.')
             continue
         command = wordslst[0]
         final_results = process_command(wordslst[1:])
@@ -511,7 +513,8 @@ def interactive_prompt():
             map_ratings_graph(final_results)
         elif command == "walkscore":
             map_walkscore_graph(final_results)
-
+        else:
+            print("Command not recognized: {}.".format(response))
 
 #--------------------------------------------------------------------------------------------------------
 
