@@ -41,5 +41,5 @@ walkscore Los Angeles
 type Orlando
 ratings san francisco
 
-rating, price, review, and type all lead to different plotly graphs of maps and show each restaurant as a dot with associated information
+ratings, price, review, and type all lead to different plotly graphs of maps and show each restaurant as a dot with associated information
 rating, price, and walkscore are color coded by score

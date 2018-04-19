@@ -316,7 +316,7 @@ def map_price_graph(data_in):
         site_lat = df_filtered.lat
         site_lon = df_filtered.lon
         labels = df_filtered[['restaurant', 'price']].astype('str').apply(lambda x: ' '.join(x), axis=1)
-        color = 'rgb(255, 0, 0)'
+        color = 'rgb(0, 250, 154)'
         if price_level == '$$$':
             color = 'rgb(51, 255, 255)'
         elif price_level == '$$':
@@ -490,7 +490,7 @@ def map_walkscore_graph(data_in):
 #--------------------------------------------------------------------------------------------
 class UserInputMgr:
     def __init__(self):
-        self.commands = ['type', 'price', 'rating', 'walkscore', 'exit']
+        self.commands = ['type', 'price', 'ratings', 'walkscore', 'exit']
 
     def getAndProcessUserCommand(self):
         user_input = input('Please enter a command: ')
@@ -520,8 +520,6 @@ class UserInputMgr:
             map_ratings_graph(final_results)
         elif command == "walkscore":
             map_walkscore_graph(final_results)
-
-
 
 def interactive_prompt():
     userInputMgr = UserInputMgr()

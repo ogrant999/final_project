@@ -8,12 +8,6 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 conn = sqlite3.connect('final.db')
 cur = conn.cursor()
 
-# You must write unit tests to show that the data access, storage, and
-# processing components of your project are working correctly.
-# that your database is correctly constructed and can satisfy queries that are necessary
-# for your program, and that your data
-# processing produces the results and data structures you need for presentation.
-
 class Test_API(unittest.TestCase):
     def test_get_data_from_yelp(self):
         test1 = get_data_from_yelp('restaurants', 'Ann Arbor', 10)
@@ -63,13 +57,13 @@ class TestDatabase(unittest.TestCase):
         conn.close()
 
 class TestProcessingComponents(unittest.TestCase):
-    def test_map_graph(self):
+    def test_process_1word(self):
         final_results = process_command(['chicago'])
         self.assertTrue(type(final_results), list)
         for item in final_results:
             self.assertEqual(item[0], 'Chicago')
 
-    def test_price_graph(self):
+    def test_process_2words(self):
         final_results = process_command(['new', 'york'])
         self.assertTrue(type(final_results), list)
         for item in final_results:
