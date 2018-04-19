@@ -305,6 +305,7 @@ def map_graph(data_in):
     fig = dict(data=data, layout=layout)
     py.plot(fig, filename="")
 
+
 def map_price_graph(data_in):
 
     df = pd.DataFrame(data_in,columns=['city', 'restaurant', 'rating', 'walkscore', 'type', 'price', 'review_count', 'lat', 'lon'])
@@ -314,7 +315,7 @@ def map_price_graph(data_in):
         df_filtered = df[df['price'] == price_level]
         site_lat = df_filtered.lat
         site_lon = df_filtered.lon
-        labels = df[['restaurant', 'price']].astype('str').apply(lambda x: ' '.join(x), axis=1)
+        labels = df_filtered[['restaurant', 'price']].astype('str').apply(lambda x: ' '.join(x), axis=1)
         color = 'rgb(255, 0, 0)'
         if price_level == '$$$':
             color = 'rgb(51, 255, 255)'
@@ -487,24 +488,30 @@ def map_walkscore_graph(data_in):
 
 
 #--------------------------------------------------------------------------------------------
+class UserInputMgr:
+    def __init__(self):
+        self.commands = ['type', 'price', 'rating', 'walkscore', 'exit']
 
-
-def interactive_prompt():
-    response = ''
-    while response != 'exit':
-        response = input('Enter a command: ')
-        wordslst = response.split()
-        if response == 'exit':
-            print("bye!")
+    def getAndProcessUserCommand(self):
+        user_input = input('Please enter a command: ')
+        if len(user_input) == 0:
+            print ("Please enter a valid command")
             return
-        elif len(wordslst) == 0:
-            print("Please enter a command.")
-            continue
-        elif len(wordslst) > 2:
-            print('Command not recognized. Only type in one city.')
-            continue
-        command = wordslst[0]
-        final_results = process_command(wordslst[1:])
+        command = user_input.split()[0]
+
+        if command not in self.commands:
+            print ("Please enter a valid command")
+            return
+
+        if command == 'exit':
+            return False
+
+        self.processCommand(command, user_input.split()[1:])
+
+        return True
+
+    def processCommand(self, command, city):
+        final_results = process_command(city)
         if command == "type":
             map_graph(final_results)
         elif command == "price":
@@ -513,11 +520,18 @@ def interactive_prompt():
             map_ratings_graph(final_results)
         elif command == "walkscore":
             map_walkscore_graph(final_results)
-        else:
-            print("Command not recognized: {}.".format(response))
+
+
+
+def interactive_prompt():
+    userInputMgr = UserInputMgr()
+    while (True):
+        if not userInputMgr.getAndProcessUserCommand():
+            print("bye!")
+            break
 
 #--------------------------------------------------------------------------------------------------------
 
 if __name__=="__main__":
-    #main()
+    main()
     interactive_prompt()
